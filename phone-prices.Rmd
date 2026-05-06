@@ -1,0 +1,54 @@
+---
+title: "Final Project: Predicting Phone Prices"
+author: "Omer and Zara"
+date: "`r Sys.Date()`"
+documentclass: article
+geometry: margin=1in
+fontsize: 11pt
+output:
+  pdf_document:
+    toc: false
+    df_print: kable
+    fig_caption: false
+    number_sections: false
+    dev: pdf
+    highlight: tango
+  html_document:
+    theme: default
+    self_contained: true
+    toc: false
+    df_print: kable
+    fig_caption: false
+    number_sections: false
+    smart: true
+    dev: svg
+---
+
+```{r setup, include = FALSE}
+# DO NOT ALTER THIS CHUNK (Sets up knit)
+knitr::opts_chunk$set(
+  echo = TRUE,
+  eval = TRUE,
+  fig.width = 5,
+  fig.asp = 0.618,
+  out.width = "70%",
+  dpi = 120,
+  fig.align = "center",
+  cache = FALSE
+)
+# Load required packages
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(broom))
+suppressPackageStartupMessages(library(modelr))
+
+# Load dataset
+phone_prices <- read_csv("mobile_phones.csv")
+```
+
+---
+subtitle: "[Repository link (do not remove)](`r repo_remote`)"
+---
+
+## Introduction
+
+This project is an investigation into how accurately a phone's price can be predicted based on a few of its parameters. We are using each phone's storage capacity, RAM, and battery capacity. The dataset is the [Mobile Phone Price](https://www.kaggle.com/datasets/rkiattisak/mobile-phone-price?resource=download) dataset from Kaggle, which contains information on 408 phones.
