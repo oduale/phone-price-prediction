@@ -195,7 +195,7 @@ In conclusion, the linear model for Storage satisfies the condition of linearity
 
 Another variable with a reasonably high R^2 value is RAM. Here, we will investigate the three conditions for Linear Models for RAM to find if it meets the criteria.
 
-In the code blocks below, we will follow the same process as we did for the three conditions for linear models when investigating Storage.
+We will follow the same process as we did for the three conditions for linear models when investigating Storage.
 
 ```{r}
 ram_df <- phone_prices %>%
@@ -213,7 +213,7 @@ ggplot(ram_df) +
     y = "Price")
 ```
 
-For the first plot, RAM vs. Price, shows a positive linear relationship between RAM and price. The condition for linearity is met.
+RAM vs. Price shows a positive linear relationship between RAM and price. The condition for linearity is met.
 
 ```{r}
 ggplot(ram_df) +
@@ -245,12 +245,116 @@ We chose not to investigate the three conditions for the battery model, as its R
 Now that we have evaluated each of the variables in isolation, we will now use multivariate models to investigate how the variables can predict price in conjunction with one another.
 
 
+## Multiple Linear Regression Model
 
+Now that we have analyzed each variable individually, we will combine all three variables into one multiple linear regression model. This allows us to see how well Storage, RAM, and Battery Capacity work together to predict the price of a phone.
 
+The code block below creates the multiple regression model.
 
+```{r}
+multiple_model <- lm(price ~ storage + ram + battery, data = phone_prices)
 
+multiple_model %>% tidy()
 
+multiple_model %>%
+  glance() %>%
+  select(r.squared, adj.r.squared, sigma, statistic, p.value)
+```
 
+The multiple regression model combines all three predictor variables together. Compared to the individual models, the combined model has a higher R^2 value, meaning that the variables together explain more variation in phone price than any single variable alone.
 
+Storage and RAM still appear to be the strongest predictors of phone price, while Battery Capacity contributes less strongly to the model and shows a slight negative relationship. This follows the trends that we observed earlier in the scatter-plots and univariate regression models.
 
+## Residual Analysis for Multiple Regression
 
+To further evaluate the model, we will now investigate the residuals for the multiple regression model. First, we will create a new data frame containing predictions and residuals.
+
+```{r}
+multiple_df <- phone_prices %>%
+  add_predictions(multiple_model) %>%
+  add_residuals(multiple_model)
+```
+
+First, we will check the condition of Constant Variability by plotting the residuals against the predicted values.
+
+```{r}
+ggplot(multiple_df) +
+  geom_point(mapping = aes(x = pred, y = resid)) +
+  geom_hline(yintercept = 0) +
+  labs(
+    title = "Predicted Price vs. Residuals",
+    x = "Predicted Price",
+    y = "Residuals")
+```
+
+The residuals appear to be generally centered around zero, although the spread changes somewhat across predicted prices. There are also a few noticeable outliers. This suggests that the condition of Constant Variability appears to be partially satisfied, but the model still appears reasonable overall.
+
+Next, we will check the condition of Nearly Normal Residuals by creating a histogram of the residuals.
+
+```{r}
+ggplot(multiple_df) +
+  geom_histogram(mapping = aes(x = resid), binwidth = 100) +
+  labs(
+    title = "Distribution of Residuals",
+    x = "Residuals",
+    y = "Count")
+```
+
+The residuals are centered near zero and appear more normally distributed than the residuals from the earlier individual models. There is still some slight right-skewness caused by a few expensive phones in the dataset, but overall the distribution appears reasonably normal.
+
+Lastly, we can compare the predicted values to the actual phone prices.
+
+```{r}
+ggplot(multiple_df) +
+  geom_point(mapping = aes(x = pred, y = price)) +
+  geom_abline(slope = 1, intercept = 0, color = "blue") +
+  labs(
+    title = "Predicted Price vs. Actual Price",
+    x = "Predicted Price",
+    y = "Actual Price")
+```
+
+If the predictions were perfect, every point would lie directly on the blue line. Most of the points are reasonably close to the line, showing that the model predicts phone prices fairly well overall. However, there are still a few outliers where the model either over-predicts or under-predicts the actual price.
+
+## Comparing R^2 Values
+
+Now, we will compare the R^2 values from each model to determine which model performs best overall.
+
+```{r}
+model_comparison <- tibble(
+  Model = c("Storage", "RAM", "Battery", "Multiple Regression"),
+  R_Squared = c(
+    summary(storage_model)$r.squared,
+    summary(ram_model)$r.squared,
+    summary(battery_model)$r.squared,
+    summary(multiple_model)$r.squared
+  )
+)
+
+model_comparison
+```
+
+We can also visualize the R^2 values using a bar chart.
+
+```{r}
+ggplot(model_comparison) +
+  geom_col(mapping = aes(x = Model, y = R_Squared)) +
+  labs(
+    title = "Comparison of R^2 Values",
+    x = "Model",
+    y = "R^2")
+```
+
+The multiple regression model has the highest R^2 value overall. This means that combining Storage, RAM, and Battery Capacity together creates a more accurate model than using any one variable by itself.
+
+Storage remains the strongest individual predictor, followed by RAM. Battery Capacity had the weakest individual relationship with price, although it still slightly improves the combined model.
+
+## Conclusion
+
+The goal of this project was to investigate how accurately phone prices could be predicted using Storage, RAM, and Battery Capacity. Through visualization and regression modeling, we found that Storage and RAM both have strong positive relationships with phone price, while Battery Capacity is a weaker predictor with a slight negative relationship.
+
+Among the individual models, Storage produced the highest R^2 value and was the best single predictor of price. However, the multiple linear regression model performed the best overall because it combined all three variables together.
+
+The residual analysis also showed that the assumptions for linear regression were reasonably satisfied. Although there were a few outliers and slight skewness in the residuals, the overall model still performed fairly well.
+
+Overall, this project demonstrates that hardware specifications, especially Storage and RAM, are useful indicators of phone pricing. In the future, the model could likely be improved further by adding additional variables such as processor speed, camera quality, screen refresh rate, or release year.
