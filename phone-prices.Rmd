@@ -99,4 +99,94 @@ phone_prices %>%
     y = "Price")
 ```
 
-The distribution of prices in the Battery graph is very clustered, with no clear trend in the data. In RAM and storage, there is a strong positive relationship with price. Both graphs have trends where when RAM or storage increase, price also increases. There is an outlier in each of the three graphs, with a phone priced at $2,000, which is likely the same phone in each. This phone particular seems to have a price that isn't correlated with these specifications.
+The distribution of prices in the Battery graph is very clustered, with no clear trend in the data. In RAM and storage, there is a strong positive relationship with price. Both graphs have trends where when RAM or storage increase, price also increases. There is an outlier in each of the three graphs, with a phone priced at $2,000, which is likely the same phone in each. This phone in particular seems to have a price that isn't correlated with these specifications.
+
+## Linear Models
+
+Using the trends we observed in the initial visualization, we will now build linear regression models so we can quantify the relationships between each predictor and price. First, we will build three separate univariate models before combining them later. For each model, we will examine the R^2 value to determine how much of the variation in price is explained by that predictor.
+
+This code block builds the three univariate models.
+
+```{r}
+storage_model <- lm(price ~ storage, data = phone_prices)
+ram_model <- lm(price ~ ram, data = phone_prices)
+battery_model <- lm(price ~ battery, data = phone_prices)
+```
+
+Then we will examine the coefficients and R^2 value for each variable. The order of variables is as follows: Storage, RAM, then Battery.
+
+```{r}
+storage_model %>% tidy()
+storage_model %>% 
+  glance() %>% 
+  select(1:4)
+
+ram_model %>% tidy()
+ram_model %>% 
+  glance() %>% 
+  select(1:4)
+
+battery_model %>% tidy()
+battery_model %>% 
+  glance() %>% 
+  select(1:4)
+```
+
+Storage has a relatively high R^2 value of 0.520, with RAM having an R^2 value of 0.397, and Battery with an R^2 value of 0.158. This follows our conclusions drawn from their scatter-plots vs. Price, with Storage being the best predictor overall.
+
+## Three Conditions for Linear Models (Storage)
+
+Because Storage is the best predictor of price, we will now check the three conditions for Linear Models in Storage. 
+
+First, we will add predictions and residuals into a new data-frame.
+
+```{r}
+storage_df <- phone_prices %>%
+  add_predictions(storage_model) %>%
+  add_residuals(storage_model)
+```
+
+Now, we will check the first condition of Linearity. To visualize this, we will plot storage vs price with a regression line overlaid to see whether there is a linear relationship between the two variables.
+
+```{r}
+ggplot(storage_df) +
+  geom_point(mapping = aes(x = storage, y = price)) +
+  geom_abline(
+    slope = storage_model$coefficients[2],
+    intercept = storage_model$coefficients[1]) +
+  labs(
+    title = "Storage vs. Price",
+    x = "Storage",
+    y = "Price")
+```
+
+Here we can see that there is indeed a positive linear relationship between Storage and Price. This meets the criteria that the two variables have a linear relationship.
+
+Next, we will check the second condition of Constant Variability. To do this, we will plot the residuals vs. the predicted values from the linear model of Storage.
+
+```{r}
+ggplot(storage_df) +
+  geom_point(mapping = aes(x = pred, y = resid)) +
+  geom_hline(yintercept = 0) +
+  labs(
+    title = "Predicted Price vs. Residuals",
+    x = "Predicted Price",
+    y = "Residuals")
+```
+
+The residuals appear to be roughly centered around zero across all predicted values. This suggests that the condition of Constant Variability is met, although not perfectly. 
+
+Lastly, we need to check the third condition of Nearly Normal Residuals. To do this, we will create a histogram of the residuals to visualize their distribution.
+
+```{r}
+ggplot(storage_df) +
+  geom_histogram(mapping = aes(x = resid), binwidth = 100) +
+  labs(
+    title = "Distribution of Residuals",
+    x = "Residuals",
+    y = "Count")
+```
+
+The distribution of residuals is right-skewed, with a tail extending towards $1,000. The majority of the residuals are centered around zero, although the model tended to under-predict the price for many phones. For this condition, we believe that it is partially met, but not as strongly as the other two conditions.
+
+In conclusion, the linear model for Storage satisfies the condition of linearity and constant variability. However, the condition of nearly normal residuals is only partially met due to the skewness in the distribution. Overall, the model is reasonably reliable to predict the price of phones based on Storage.
