@@ -40,6 +40,8 @@ knitr::opts_chunk$set(
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(broom))
 suppressPackageStartupMessages(library(modelr))
+suppressPackageStartupMessages(library(git2r))
+repo_remote <- remote_url(repository())
 
 # Load dataset
 phone_prices <- read_csv("mobile_phones.csv")
@@ -52,3 +54,4 @@ subtitle: "[Repository link (do not remove)](`r repo_remote`)"
 ## Introduction
 
 This project is an investigation into how accurately a phone's price can be predicted based on a few of its parameters. We are using each phone's storage capacity, RAM, and battery capacity. The dataset is the [Mobile Phone Price](https://www.kaggle.com/datasets/rkiattisak/mobile-phone-price?resource=download) dataset from Kaggle, which contains information on 408 phones.
+
