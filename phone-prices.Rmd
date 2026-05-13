@@ -240,7 +240,9 @@ The third graph of the distributed Residuals shows that the distribution is roug
 
 In conclusion, the RAM model satisfies all three conditions for linear models. Although Storage had a higher R^2 value, the RAM model could be considered more reliable overall due to it having more normal residuals.
 
+We chose not to investigate the three conditions for the battery model, as its R^2 value of 0.158 is simply too small to consider it as a good predictor to warrant further analysis.
 
+Now that we have evaluated each of the variables in isolation, we will now use multivariate models to investigate how the variables can predict price in conjunction with one another.
 
 
 
