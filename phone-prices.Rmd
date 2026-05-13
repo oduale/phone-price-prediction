@@ -83,7 +83,7 @@ phone_prices <- phone_prices %>%
 
 Before we begin analyzing each individual variable of interest, we will visualize the distribution of the variables to get a general sense of how the data is spread and potentially identify outliers or skewness that could affect our models.
 
-To do this, we will build a scatter-plot for each variable to visualize the distribution of the variables. The function below works as follows: the pivot_longer() function reshapes the data, so we can plot the all at once. We use facet_wrap() to split the plots into separate panels, setting scales to "free_x" to allow each plot to have its own x-axis scale.
+To do this, we will build a scatter-plot for each variable to visualize the distribution of the variables. The function below works as follows: the pivot_longer() function reshapes the data, so we can plot them all at once. We use facet_wrap() to split the plots into separate panels, setting scales to "free_x" to allow each plot to have its own x-axis scale.
 
 ```{r}
 phone_prices %>%
@@ -190,3 +190,65 @@ ggplot(storage_df) +
 The distribution of residuals is right-skewed, with a tail extending towards $1,000. The majority of the residuals are centered around zero, although the model tended to under-predict the price for many phones. For this condition, we believe that it is partially met, but not as strongly as the other two conditions.
 
 In conclusion, the linear model for Storage satisfies the condition of linearity and constant variability. However, the condition of nearly normal residuals is only partially met due to the skewness in the distribution. Overall, the model is reasonably reliable to predict the price of phones based on Storage.
+
+## Three Conditions for Linear Models (RAM)
+
+Another variable with a reasonably high R^2 value is RAM. Here, we will investigate the three conditions for Linear Models for RAM to find if it meets the criteria.
+
+In the code blocks below, we will follow the same process as we did for the three conditions for linear models when investigating Storage.
+
+```{r}
+ram_df <- phone_prices %>%
+  add_predictions(ram_model) %>%
+  add_residuals(ram_model)
+
+ggplot(ram_df) +
+  geom_point(mapping = aes(x = ram, y = price)) +
+  geom_abline(
+    slope = ram_model$coefficients[2],
+    intercept = ram_model$coefficients[1]) +
+  labs(
+    title = "RAM vs. Price",
+    x = "RAM",
+    y = "Price")
+```
+
+For the first plot, RAM vs. Price, shows a positive linear relationship between RAM and price. The condition for linearity is met.
+
+```{r}
+ggplot(ram_df) +
+  geom_point(mapping = aes(x = pred, y = resid)) +
+  geom_hline(yintercept = 0) +
+  labs(
+    title = "Predicted Price vs. Residuals",
+    x = "Predicted Price",
+    y = "Residuals")
+```
+
+The residuals shown in the second plot is roughly centered around zero across all predicted variables, in a similar trend as the Storage model. We decided that the second condition of Constant Variability has been met.
+
+```{r}
+ggplot(ram_df) +
+  geom_histogram(mapping = aes(x = resid), binwidth = 100) +
+  labs(
+    title = "Distribution of Residuals",
+    x = "Residuals",
+    y = "Count")
+```
+
+The third graph of the distributed Residuals shows that the distribution is roughly right-skewed, but seems to be more normally distributed than the distribution of Residuals in the Storage model. We conclude that the third condition of Nearly Normal Residuals has been met.
+
+In conclusion, the RAM model satisfies all three conditions for linear models. Although Storage had a higher R^2 value, the RAM model could be considered more reliable overall due to it having more normal residuals.
+
+
+
+
+
+
+
+
+
+
+
+
+
