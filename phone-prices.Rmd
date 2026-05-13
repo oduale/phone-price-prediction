@@ -55,3 +55,48 @@ subtitle: "[Repository link (do not remove)](`r repo_remote`)"
 
 This project is an investigation into how accurately a phone's price can be predicted based on a few of its parameters. We are using each phone's storage capacity, RAM, and battery capacity. The dataset is the [Mobile Phone Price](https://www.kaggle.com/datasets/rkiattisak/mobile-phone-price?resource=download) dataset from Kaggle, which contains information on 408 phones.
 
+## Data Cleaning
+
+The data is stored under a CSV file named "mobile_phones.csv". The table is generally messy as not all of the data is stored with consistent constraints. The storage, RAM, and Price columns all have inconsistent formats, which would make it difficult to interpret the data.
+
+The first step is to clean the data, which would include standardizing formats in columns. First, we can use tidyverse to standardize the columns of interest into only numeric values. This command also renames the columns for readability and typing them in the future.
+
+```{r}
+phone_prices <- phone_prices %>%
+  mutate(
+    storage = parse_number(Storage),
+    ram = parse_number(RAM),
+    battery = `Battery Capacity (mAh)`,
+    price = parse_number(`Price ($)`)
+  )
+```
+
+In addition, we are only considering a few columns for this project, so we will remove the columns we are not using. Also, some phones in the dataset have multiple entries, so we will only keep the distinct copies.
+
+```{r}
+phone_prices <- phone_prices %>%
+  select(Brand, Model, storage, ram, battery, price) %>%
+  distinct()
+```
+
+## Initial Visualization
+
+Before we begin analyzing each individual variable of interest, we will visualize the distribution of the variables to get a general sense of how the data is spread and potentially identify outliers or skewness that could affect our models.
+
+To do this, we will build a scatter-plot for each variable to visualize the distribution of the variables. The function below works as follows: the pivot_longer() function reshapes the data, so we can plot the all at once. We use facet_wrap() to split the plots into separate panels, setting scales to "free_x" to allow each plot to have its own x-axis scale.
+
+```{r}
+phone_prices %>%
+  pivot_longer(cols = c(storage, ram, battery), 
+               names_to = "variable", 
+               values_to = "value") %>%
+  ggplot() +
+  geom_point(mapping = aes(x = value, y = price)) +
+  facet_wrap(~ variable, scales = "free_x") +
+  labs(
+    title = "Variables of Interest vs. Price", 
+    x = "Value", 
+    y = "Price")
+```
+
+The distribution of prices in the Battery graph is very clustered, with no clear trend in the data. In RAM and storage, there is a strong positive relationship with price. Both graphs have trends where when RAM or storage increase, price also increases. There is an outlier in each of the three graphs, with a phone priced at $2,000, which is likely the same phone in each. This phone particular seems to have a price that isn't correlated with these specifications.
