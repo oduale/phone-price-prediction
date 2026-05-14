@@ -1,0 +1,373 @@
+---
+title: "CDS 101 – Final Project Report"
+author: "Omer and Zara"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    css: "gmu-cds101.css"
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  pdf_document:
+    toc: true
+---
+
+# 0. Loading Required Packages
+
+For readability later in the document, we will load the packages we will be using here.
+
+```{r}
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(broom))
+suppressPackageStartupMessages(library(modelr))
+suppressPackageStartupMessages(library(git2r))
+```
+
+
+# 1. Problem Definition
+
+This project is an investigation into how accurately a phone's price can be predicted based on a few of its parameters. Shoppers and analysts could use this project to evaluate the value of phones to find valuable deals and make educated shopping decisions. Our main focus will revolve around how certain phone specifications could predict the price of a phone. We will focus on each phone's storage size (GB), RAM (GB), and battery capacity (mAh). Storage size and RAM are discrete variables while battery capacity is continuous. During our analysis, we will treat these discrete variables as continuous for linear regression as their values still have magnitude.
+
+# 2. Data Acquisition & Description
+
+Our data source is the Mobile Phone Price dataset from Kaggle https://www.kaggle.com/datasets/rkiattisak/mobile-phone-price?resource=download. The dataset contains information on 408 phones with 8 columns. The eight columns are the phone's brand, model, storage, RAM, screen size, camera, battery capacity, and price.
+
+```{r setup-data, echo=FALSE, message=FALSE, warning=FALSE}
+phone_prices <- read_csv("mobile_phones.csv")
+```
+
+# 3. Data Cleaning & Preprocessing
+
+The data is stored under a CSV file named "mobile_phones.csv". The table is generally messy as not all of the data is stored with consistent constraints. The storage, RAM, and price columns all have inconsistent formats, which would make it difficult to interpret the data.
+
+The first step is to clean the data, which would include standardizing the formats in columns. First, we can use tidyverse to standardize the columns of interest into only numeric values. This command also renames the columns for readability and typing them in the future.
+
+```{r  cleaning, eval=FALSE}
+phone_prices <- phone_prices %>%
+  mutate(
+    storage = parse_number(Storage),
+    ram = parse_number(RAM),
+    battery = `Battery Capacity (mAh)`,
+    price = parse_number(`Price ($)`)
+  )
+```
+
+In addition, we are only considering a few columns for this project, so we will remove the columns we are not using. Also, some phones in the dataset have multiple entries, so we will only keep the distinct copies.
+
+```{r  cleaning, eval=FALSE}
+phone_prices <- phone_prices %>%
+  select(Brand, Model, storage, ram, battery, price) %>%
+  distinct()
+```
+
+# 4. Exploratory Data Analysis (EDA)
+
+Before we begin analyzing each individual variable of interest, we will visualize the distribution of the variables to get a general sense of how the data is spread and potentially identify outliers or skewness that could affect our models.
+
+To do this, we will build a scatter-plot for each variable to visualize the relationship of each variable with price. The function below works as follows: the pivot_longer() function reshapes the data, so we can plot them all at once. We use facet_wrap() to split the plots into separate panels, setting scales to "free_x" to allow each plot to have its own x-axis scale.
+
+```{r eda-summary, message=FALSE, warning=FALSE}
+phone_prices %>%
+  pivot_longer(cols = c(storage, ram, battery), 
+               names_to = "variable", 
+               values_to = "value") %>%
+  ggplot() +
+  geom_point(mapping = aes(x = value, y = price)) +
+  facet_wrap(~ variable, scales = "free_x") +
+  labs(
+    title = "Variables of Interest vs. Price", 
+    x = "Value", 
+    y = "Price")
+```
+
+# 5. Visualization Quality and Storytelling
+
+These plots provide an initial view into how each variable relates to price. We chose to use scatter plots to observe which variables connect with plots, instead of observing their distribution. RAM and Storage are both discrete variables which is shown by their x-values being grouped around the different values instead of being continuous like battery capacity.
+
+The distribution of prices in the Battery graph is very clustered, with no clear trend in the data. In RAM and storage, there is a strong positive relationship with price. Both graphs have trends where when RAM or storage increase, price also increases. There is an outlier in each of the three graphs, with a phone priced at $2,000, which is likely the same phone in each. This phone in particular seems to have a price that isn't correlated with these specifications.
+
+# 6. Modeling Approach
+
+In order to find how to best predict a phones price, we will use linear regression models. Our main goal is to compare different methods of prediction, so we will use two univariate models and one multivariate model. 
+
+# 7. Model Implementation & Evaluation
+
+## Linear Models
+
+Using the trends we observed in the initial visualization, we will now build linear regression models so we can quantify the relationships between each predictor and price. First, we will build three separate univariate models before combining them later. For each model, we will examine the R^2 value to determine how much of the variation in price is explained by that predictor.
+
+This code block builds the three univariate models.
+
+```{r modeling, eval=FALSE}
+storage_model <- lm(price ~ storage, data = phone_prices)
+ram_model <- lm(price ~ ram, data = phone_prices)
+battery_model <- lm(price ~ battery, data = phone_prices)
+```
+
+Then we will examine the coefficients and R^2 value for each variable. The order of variables is as follows: Storage, RAM, then Battery.
+
+```{r modeling, eval=FALSE}
+storage_model %>% tidy()
+storage_model %>% 
+  glance() %>% 
+  select(1:4)
+
+ram_model %>% tidy()
+ram_model %>% 
+  glance() %>% 
+  select(1:4)
+
+battery_model %>% tidy()
+battery_model %>% 
+  glance() %>% 
+  select(1:4)
+```
+
+Storage has a relatively high R^2 value of 0.520, with RAM having an R^2 value of 0.397, and Battery with an R^2 value of 0.158. This follows our conclusions drawn from their scatter-plots vs. Price, with Storage being the best predictor overall.
+
+## Three Conditions for Linear Models (Storage)
+
+Because storage has the highest R^2 value, we will now check the three conditions for Linear Models for storage. 
+
+First, we will add predictions and residuals into a new data-frame.
+
+```{r modeling, eval=FALSE}
+storage_df <- phone_prices %>%
+  add_predictions(storage_model) %>%
+  add_residuals(storage_model)
+```
+
+Now, we will check the first condition of Linearity. To visualize this, we will plot storage vs price with a regression line overlaid to see whether there is a linear relationship between the two variables.
+
+```{r modeling, eval=FALSE}
+ggplot(storage_df) +
+  geom_point(mapping = aes(x = storage, y = price)) +
+  geom_abline(
+    slope = storage_model$coefficients[2],
+    intercept = storage_model$coefficients[1]) +
+  labs(
+    title = "Storage vs. Price",
+    x = "Storage",
+    y = "Price")
+```
+
+Here we can see that there is indeed a positive linear relationship between storage and price. Although this variable is discrete, there is a clear trend as storage size increases, price subsequently increases with a linear trend. This meets the criteria that the two variables have a linear relationship.
+
+Next, we will check the second condition of Constant Variability. To do this, we will plot the residuals vs. the predicted values from the linear model of Storage.
+
+```{r modeling, eval=FALSE}
+ggplot(storage_df) +
+  geom_point(mapping = aes(x = pred, y = resid)) +
+  geom_hline(yintercept = 0) +
+  labs(
+    title = "Predicted Price vs. Residuals",
+    x = "Predicted Price",
+    y = "Residuals")
+```
+
+The residuals appear to be roughly centered around zero across all predicted values, however, there is no constant variability. As the predicted price increases, the residuals also increase. Particularly, phones with a very low predicted price have very small residuals, while the phones with higher predicted price have a varying amount of residuals. We conclude that this model does not meet the criteria for Constant Variability.
+
+Lastly, we need to check the third condition of Nearly Normal Residuals. To do this, we will create a histogram of the residuals to visualize their distribution.
+
+```{r modeling, eval=FALSE}
+ggplot(storage_df) +
+  geom_histogram(mapping = aes(x = resid), binwidth = 100) +
+  labs(
+    title = "Distribution of Residuals",
+    x = "Residuals",
+    y = "Count")
+```
+
+The distribution of residuals is right-skewed, with a tail extending towards $1,000. The majority of the residuals are centered around zero, although the model tended to under-predict the price for many phones. We believe that the condition for Nearly Normal residuals has not been met.
+
+In conclusion, the linear model for storage satisfies the condition of linearity, but fails the conditions for constant variability and nearly normal residuals. Although the R^2 value of 0.520 suggests that storage should be stronger predictor of price, it violates two of the conditions for linear models. The residuals plot and distribution suggests that the model may perform better for lower-priced predictions, but becomes unreliable as predicted price increases. Overall, storage size may be a useful predictor for budget phones, it should not be considered for all phones in the dataset.
+
+## Three Conditions for Linear Models (RAM)
+
+Another variable with a reasonably high R^2 value is RAM. Here, we will investigate the three conditions for Linear Models for RAM to find if it meets the criteria.
+
+We will follow the same process as we did for the three conditions for linear models when investigating Storage.
+
+```{r modeling, eval=FALSE}
+ram_df <- phone_prices %>%
+  add_predictions(ram_model) %>%
+  add_residuals(ram_model)
+
+ggplot(ram_df) +
+  geom_point(mapping = aes(x = ram, y = price)) +
+  geom_abline(
+    slope = ram_model$coefficients[2],
+    intercept = ram_model$coefficients[1]) +
+  labs(
+    title = "RAM vs. Price",
+    x = "RAM",
+    y = "Price")
+```
+
+Just like with storage size, RAM is also a discrete variable. In addition, it also shares a positive relationship with the price of phones. The graph shows that as RAM increases, the price of the phones increase with a linear trend. This meets the criteria that RAM and price have a linear relationship with one another.
+
+```{r modeling, eval=FALSE}
+ggplot(ram_df) +
+  geom_point(mapping = aes(x = pred, y = resid)) +
+  geom_hline(yintercept = 0) +
+  labs(
+    title = "Predicted Price vs. Residuals",
+    x = "Predicted Price",
+    y = "Residuals")
+```
+
+The residuals in for RAM seem very similar to the residuals in storage, with many residuals centered around zero, but doesn't have constant variability. In this case, as the predicted price increases, the variability also increases, which violates the condition for constant variability.
+
+```{r modeling, eval=FALSE}
+ggplot(ram_df) +
+  geom_histogram(mapping = aes(x = resid), binwidth = 100) +
+  labs(
+    title = "Distribution of Residuals",
+    x = "Residuals",
+    y = "Count")
+```
+
+The distribution of residuals in the RAM model is right-skewed, but seem to be more normally distributed than the distribution of residuals in the storage model. This condition is for nearly normal residuals, and we believe that this condition has been met.
+
+In conclusion, the RAM model satisfies only two conditions for linear models. However, this was interesting as RAM had a lower R^2 value than storage, so this was not as expected. This suggests that a higher R^2 value does not necessarily indicate a more reliable model, as RAM met more criteria than storage. Overall, we conclude that RAM is a better predictor for price than storage.
+
+We chose not to investigate the three conditions for the battery model, as its R^2 value of 0.158 is simply too small to consider it as a good predictor to warrant further analysis.
+
+Now that we have evaluated each of the variables in isolation, we will now use multivariate models to investigate how the variables can predict price in conjunction with one another.
+
+
+## Multiple Linear Regression Model
+
+Now that we have analyzed each variable individually, we will combine all three variables into one multiple linear regression model. This allows us to see how well Storage, RAM, and Battery Capacity work together to predict the price of a phone.
+
+The code block below creates the multiple regression model.
+
+```{r modeling, eval=FALSE}
+multiple_model <- lm(price ~ storage + ram + battery, data = phone_prices)
+
+multiple_model %>% tidy()
+
+multiple_model %>%
+  glance() %>%
+  select(r.squared, adj.r.squared, sigma, statistic, p.value)
+```
+
+The multiple regression model combines all three predictor variables together. Compared to the individual models, the combined model has a higher R^2 value, meaning that the variables together explain more variation in phone price than any single variable alone.
+
+Storage and RAM still appear to be the strongest predictors of phone price, while Battery Capacity contributes less strongly to the model and shows a slight negative relationship. This follows the trends that we observed earlier in the scatter-plots and univariate regression models.
+
+## Residual Analysis for Multiple Regression
+
+To further evaluate the model, we will now investigate the residuals for the multiple regression model. First, we will create a new data frame containing predictions and residuals.
+
+```{r modeling, eval=FALSE}
+multiple_df <- phone_prices %>%
+  add_predictions(multiple_model) %>%
+  add_residuals(multiple_model)
+```
+
+First, we will check the condition of Constant Variability by plotting the residuals against the predicted values.
+
+```{r modeling, eval=FALSE}
+ggplot(multiple_df) +
+  geom_point(mapping = aes(x = pred, y = resid)) +
+  geom_hline(yintercept = 0) +
+  labs(
+    title = "Predicted Price vs. Residuals",
+    x = "Predicted Price",
+    y = "Residuals")
+```
+
+The residuals appear to be generally centered around zero, although the spread changes somewhat across predicted prices. There are also a few noticeable outliers. This suggests that the condition of Constant Variability appears to be partially satisfied, but the model still appears reasonable overall.
+
+Next, we will check the condition of Nearly Normal Residuals by creating a histogram of the residuals.
+
+```{r modeling, eval=FALSE}
+ggplot(multiple_df) +
+  geom_histogram(mapping = aes(x = resid), binwidth = 100) +
+  labs(
+    title = "Distribution of Residuals",
+    x = "Residuals",
+    y = "Count")
+```
+
+The residuals are centered near zero and appear more normally distributed than the residuals from the earlier individual models. There is still some slight right-skewness caused by a few expensive phones in the dataset, but overall the distribution appears reasonably normal.
+
+Lastly, we can compare the predicted values to the actual phone prices.
+
+```{r modeling, eval=FALSE}
+ggplot(multiple_df) +
+  geom_point(mapping = aes(x = pred, y = price)) +
+  geom_abline(slope = 1, intercept = 0, color = "blue") +
+  labs(
+    title = "Predicted Price vs. Actual Price",
+    x = "Predicted Price",
+    y = "Actual Price")
+```
+
+If the predictions were perfect, every point would lie directly on the blue line. Most of the points are reasonably close to the line, showing that the model predicts phone prices fairly well overall. However, there are still a few outliers where the model either over-predicts or under-predicts the actual price.
+
+## Comparing R^2 Values
+
+Now, we will compare the R^2 values from each model to determine which model performs best overall.
+
+```{r modeling, eval=FALSE}
+model_comparison <- tibble(
+  Model = c("Storage", "RAM", "Battery", "Multiple Regression"),
+  R_Squared = c(
+    summary(storage_model)$r.squared,
+    summary(ram_model)$r.squared,
+    summary(battery_model)$r.squared,
+    summary(multiple_model)$r.squared
+  )
+)
+
+model_comparison
+```
+
+We can also visualize the R^2 values using a bar chart.
+
+```{r modeling, eval=FALSE}
+ggplot(model_comparison) +
+  geom_col(mapping = aes(x = Model, y = R_Squared)) +
+  labs(
+    title = "Comparison of R^2 Values",
+    x = "Model",
+    y = "R^2")
+```
+
+The multiple regression model has the highest R^2 value overall. This means that combining Storage, RAM, and Battery Capacity together creates a more accurate model than using any one variable by itself.
+
+Storage remains the strongest individual predictor, followed by RAM. Battery Capacity had the weakest individual relationship with price, although it still slightly improves the combined model.
+
+# 8. Conclusions & Recommendations
+
+The goal of this project was to investigate how accurately phone prices could be predicted using Storage, RAM, and Battery Capacity. Through visualization and regression modeling, we found that Storage and RAM both have strong positive relationships with phone price, while Battery Capacity is a weaker predictor with a slight negative relationship.
+
+Among the individual models, Storage produced the highest R^2 value and was the best single predictor of price. However, the multiple linear regression model performed the best overall because it combined all three variables together.
+
+The residual analysis also showed that the assumptions for linear regression were reasonably satisfied. Although there were a few outliers and slight skewness in the residuals, the overall model still performed fairly well.
+
+Overall, this project demonstrates that hardware specifications, especially Storage and RAM, are useful indicators of phone pricing. In the future, the model could likely be improved further by adding additional variables such as processor speed, camera quality, screen refresh rate, or release year.
+
+# 9. Code Quality & Reproducibility
+
+Briefly document how someone else can reproduce your results:
+
+- Which R scripts or Rmd files to run.  
+- Any required R packages.
+
+In order to reproduce these findings, interested parties can use this file and run each code chunk to serve as a walk-through for our process. The packages we used were: 
+
+- tidyverse
+- broom
+- modelr
+
+```{r session-info, echo=FALSE}
+sessionInfo()
+```
+
+# 10. References
+
+Kiattisak, R. (2021). *Mobile Phone Price* [Dataset]. Kaggle. 
+https://www.kaggle.com/datasets/rkiattisak/mobile-phone-price?resource=download
